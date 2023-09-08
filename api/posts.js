@@ -38,9 +38,14 @@ postsRouter.get('/', async (req, res, next) => {
 });
 
 postsRouter.post('/', requireUser, async (req, res, next) => {
-  const { title, content = "" } = req.body;
+  const { title, content, tags = "" } = req.body;
 
+  const tagArray = tags.trim().split();
   const postData = {};
+
+  if (tagArray.length) {
+    postData.tags = tagArray;
+  }
 
   try {
     postData.authorId = req.user.id;
@@ -98,7 +103,25 @@ postsRouter.patch('/:postId', requireUser, async (req, res, next) => {
 });
 
 postsRouter.delete('/:postId', requireUser, async (req, res, next) => {
-  res.send({ message: 'under construction' });
+  try {
+    const post = await getPostById(req.params.postId);
+
+    if (post && post.author.id === req.user.id) {
+      const updatePost = await updatePost(post.id, { active: false});
+
+      res.send({ post: updatedPost});
+    } else {
+      next(post ? {
+        name: "UnauthorizedUser",
+        message: "You cannot delete another users post"
+      } : {
+        name: "NoPostFound",
+        message: "The post cannot be found"
+      });
+    }
+  } catch ({name, message}) {
+    next({name, message})
+  }
 });
 
 module.exports = postsRouter;
